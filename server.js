@@ -86,7 +86,7 @@ function makeBall() {
         y: 2,
         z: 0,
         vx: rand(-3, 3),
-        vy: rand(-1, 1),
+        vy: 0, //keep it parallel //rand(-1, 1),
         vz: Math.random() < 0.5 ? 8 : -8,
         radius: BALL_RADIUS,
         lastHitBy: null,
@@ -96,10 +96,13 @@ function makeBall() {
 function createRoom(roomId) {
     return {
         roomId,
-        phase: "lobby",
+        phase: "lobby", // lobby | waiting_serve | playing | gameover
         winner: null,
         lastTick: Date.now(),
         lastEventMessage: "",
+        serveWaitingFor: null, // "p1" or "p2"
+        serveToward: null, // "p1" or "p2"
+        lastScorer: null, // "p1" or "p2"
         players: {
             p1: makePlayer("Player 1", "p1", COURT.playerZ1),
             p2: makePlayer("Player 2", "p2", COURT.playerZ2),
@@ -165,21 +168,31 @@ function resetBall(room, towardSide = "p1") {
     room.ball.y = 2;
     room.ball.z = 0;
     room.ball.vx = rand(-3, 3);
-    room.ball.vy = rand(-1.25, 1.25);
+    room.ball.vy = 0; // if you made the ball stay parallel
     room.ball.vz = towardSide === "p1" ? -8 : 8;
     room.ball.lastHitBy = null;
 }
-
 function startMatch(room) {
-    room.phase = "playing";
+    room.phase = "waiting_serve";
     room.winner = null;
-    room.lastEventMessage = "Match started!";
+    room.lastScorer = Math.random() < 0.5 ? "p1" : "p2";
+
+    // losing side on opening serve doesn't really exist,
+    // so let the opposite player press space to start
+    room.serveToward = room.lastScorer;
+    room.serveWaitingFor = room.lastScorer === "p1" ? "p2" : "p1";
+
+    room.lastEventMessage = `${
+        room.serveWaitingFor === "p1" ? "Player 1" : "Player 2"
+    } press Space to serve.`;
+
     room.players.p1.score = 0;
     room.players.p2.score = 0;
     room.players.p1.stats.stamina = room.players.p1.stats.staminaMax;
     room.players.p2.stats.stamina = room.players.p2.stats.staminaMax;
+
     resetPlayersForPoint(room);
-    resetBall(room, Math.random() < 0.5 ? "p1" : "p2");
+    resetBall(room, room.serveToward);
 }
 
 function ballHitsPlayer(ball, player) {
@@ -202,8 +215,7 @@ function reflectBall(ball, player) {
     ball.vz = player.side === "p1" ? Math.abs(speed) : -Math.abs(speed);
     ball.vx += offsetX * 2.5;
     ball.vx = clamp(ball.vx, -12, 12);
-    ball.vy += rand(-0.5, 0.5);
-    ball.vy = clamp(ball.vy, -6, 6);
+
     ball.lastHitBy = player.side;
 }
 
@@ -229,8 +241,10 @@ function maybeTriggerUnkindChase(room, loser, scorer) {
 function scorePoint(room, scorerSide) {
     const scorer = room.players[scorerSide];
     const loser = scorerSide === "p1" ? room.players.p2 : room.players.p1;
+    const loserSide = scorerSide === "p1" ? "p2" : "p1";
 
     scorer.score += 1;
+    room.lastScorer = scorerSide;
     room.lastEventMessage = `${scorer.duck?.name ?? scorer.name} scored!`;
 
     const events = [
@@ -260,8 +274,24 @@ function scorePoint(room, scorerSide) {
         return events;
     }
 
+    // Pause after score
+    room.phase = "waiting_serve";
+    room.serveToward = scorerSide; // send the ball toward the player who scored
+    room.serveWaitingFor = loserSide; // loser must press space to resume
+
     resetPlayersForPoint(room);
-    resetBall(room, scorerSide === "p1" ? "p2" : "p1");
+    resetBall(room, room.serveToward);
+
+    room.lastEventMessage = `${
+        loser.duck?.name ?? loser.name
+    } press Space to serve.`;
+
+    events.push({
+        type: "waiting_serve",
+        serveWaitingFor: room.serveWaitingFor,
+        serveToward: room.serveToward,
+        message: room.lastEventMessage,
+    });
 
     return events;
 }
@@ -295,7 +325,7 @@ function updateBall(room, dt) {
     const events = [];
 
     ball.x += ball.vx * dt;
-    ball.y += ball.vy * dt;
+    //ball.y += ball.vy * dt;
     ball.z += ball.vz * dt;
 
     if (ball.x - ball.radius <= -COURT.width / 2) {
@@ -307,16 +337,16 @@ function updateBall(room, dt) {
         ball.x = COURT.width / 2 - ball.radius;
         ball.vx *= -1;
     }
+    ball.y = 2;
+    // if (ball.y - ball.radius <= 0.4) {
+    //     ball.y = 0.4 + ball.radius;
+    //     ball.vy *= -1;
+    // }
 
-    if (ball.y - ball.radius <= 0.4) {
-        ball.y = 0.4 + ball.radius;
-        ball.vy *= -1;
-    }
-
-    if (ball.y + ball.radius >= COURT.height) {
-        ball.y = COURT.height - ball.radius;
-        ball.vy *= -1;
-    }
+    // if (ball.y + ball.radius >= COURT.height) {
+    //     ball.y = COURT.height - ball.radius;
+    //     ball.vy *= -1;
+    // }
 
     if (ball.vz < 0 && ballHitsPlayer(ball, room.players.p1)) {
         ball.z = room.players.p1.z + 1.2;
@@ -352,6 +382,9 @@ function publicRoomState(room) {
         phase: room.phase,
         winner: room.winner,
         lastEventMessage: room.lastEventMessage,
+        serveWaitingFor: room.serveWaitingFor,
+        serveToward: room.serveToward,
+        lastScorer: room.lastScorer,
         players: {
             p1: {
                 id: room.players.p1.id,
@@ -634,6 +667,46 @@ io.on("connection", (socket) => {
                 rooms.delete(roomId);
             }
         }
+    });
+    socket.on("serveBall", ({ roomId }, callback) => {
+        const room = rooms.get(
+            String(roomId ?? "")
+                .trim()
+                .toUpperCase(),
+        );
+
+        if (!room) {
+            callback?.({ ok: false, message: "Room not found." });
+            return;
+        }
+
+        if (room.phase !== "waiting_serve") {
+            callback?.({
+                ok: false,
+                message: "Game is not waiting for serve.",
+            });
+            return;
+        }
+
+        const player = getPlayerBySocket(room, socket.id);
+        if (!player) {
+            callback?.({ ok: false, message: "You are not in this room." });
+            return;
+        }
+
+        if (player.side !== room.serveWaitingFor) {
+            callback?.({
+                ok: false,
+                message: "You are not the player who can serve.",
+            });
+            return;
+        }
+
+        room.phase = "playing";
+        room.lastEventMessage = "Play!";
+
+        io.to(room.roomId).emit("roomState", publicRoomState(room));
+        callback?.({ ok: true });
     });
 });
 

@@ -170,7 +170,11 @@ export class GameScene {
 
     startLoop() {
         const tick = () => {
-            //this.controls.update();
+            if (this.ball) {
+                this.ball.rotation.x += 0.15;
+                this.ball.rotation.z += 0.1;
+            }
+
             this.renderer.render(this.scene, this.camera);
             this._animHandle = requestAnimationFrame(tick);
         };

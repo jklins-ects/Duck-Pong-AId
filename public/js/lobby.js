@@ -91,10 +91,16 @@ function updateUI(state) {
                 ? state.players.p1.duck?.name || "Player 1"
                 : state.players.p2.duck?.name || "Player 2";
         setMessage(`${winnerDuck} wins the match!`);
+    } else if (state.phase === "waiting_serve") {
+        const serverName =
+            state.serveWaitingFor === "p1"
+                ? state.players.p1.duck?.name || "Player 1"
+                : state.players.p2.duck?.name || "Player 2";
+
+        setMessage(`${serverName}: press Space to serve.`);
     } else if (state.lastEventMessage) {
         setMessage(state.lastEventMessage);
     }
-
     if (gameClient) {
         gameClient.syncRoomState(state);
     }
@@ -247,6 +253,24 @@ function sendMove(dir) {
 }
 window.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
+
+    if (e.code === "Space") {
+        if (
+            currentRoomId &&
+            currentState &&
+            currentState.phase === "waiting_serve" &&
+            currentState.serveWaitingFor === mySide
+        ) {
+            e.preventDefault();
+
+            socket.emit("serveBall", { roomId: currentRoomId }, (resp) => {
+                if (!resp?.ok) {
+                    setMessage(resp?.message || "Could not serve.");
+                }
+            });
+        }
+        return;
+    }
 
     if (key === "a" || e.key === "ArrowLeft") {
         sendMove(-1);
