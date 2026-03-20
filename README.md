@@ -4,7 +4,7 @@ A real-time multiplayer browser game where players select custom ducks and compe
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Install dependencies
 
