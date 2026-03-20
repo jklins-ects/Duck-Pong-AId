@@ -1,0 +1,134 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #111;
+    color: #eee;
+}
+
+.app {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    min-height: 100vh;
+}
+
+.left-panel {
+    background: #1a1a1a;
+    border-right: 1px solid #333;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.right-panel {
+    position: relative;
+    min-height: 100vh;
+    background: #0b0b0b;
+}
+
+#gameContainer {
+    width: 100%;
+    height: 100vh;
+}
+
+h1,
+h2 {
+    margin-top: 0;
+}
+
+.card {
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 14px;
+}
+
+.row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+input,
+select,
+button {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: #151515;
+    color: #eee;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:hover {
+    background: #2b2b2b;
+}
+
+.status {
+    margin-top: 8px;
+    color: #b8d8ff;
+    min-height: 20px;
+}
+
+.score-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.1rem;
+}
+
+.stamina-wrap {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.label-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+.bar {
+    width: 100%;
+    height: 16px;
+    background: #111;
+    border: 1px solid #444;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #59d66f, #d3e85d);
+}
+
+.message-box {
+    min-height: 70px;
+    padding: 10px;
+    background: #151515;
+    border: 1px solid #333;
+    border-radius: 8px;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+    .app {
+        grid-template-columns: 1fr;
+    }
+
+    .right-panel,
+    #gameContainer {
+        height: 60vh;
+        min-height: 60vh;
+    }
+}

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Duck Tennis</title>
+        <link rel="stylesheet" href="/style.css" />
+    </head>
+    <body>
+        <div class="app">
+            <div class="left-panel">
+                <h1>Duck Tennis</h1>
+
+                <div class="card">
+                    <h2>Room</h2>
+                    <div class="row">
+                        <input
+                            id="roomInput"
+                            type="text"
+                            maxlength="10"
+                            placeholder="ROOM1"
+                        />
+                        <button id="createRoomBtn">Create</button>
+                        <button id="joinRoomBtn">Join</button>
+                    </div>
+                    <div id="roomStatus" class="status">Not connected</div>
+                </div>
+
+                <div class="card">
+                    <h2>Select Duck</h2>
+                    <select id="duckSelect">
+                        <option value="">Loading ducks...</option>
+                    </select>
+                    <button id="selectDuckBtn">Select Duck</button>
+                    <button id="readyBtn">Ready Up</button>
+                    <div id="selectionStatus" class="status"></div>
+                </div>
+
+                <div class="card">
+                    <h2>Score</h2>
+                    <div class="score-line">
+                        <span id="p1Name">Player 1</span>
+                        <strong id="scoreDisplay">0 - 0</strong>
+                        <span id="p2Name">Player 2</span>
+                    </div>
+
+                    <div class="stamina-wrap">
+                        <div>
+                            <div class="label-line">
+                                <span>P1 Stamina</span>
+                                <span id="p1StaminaText">100 / 100</span>
+                            </div>
+                            <div class="bar">
+                                <div id="p1StaminaBar" class="fill"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="label-line">
+                                <span>P2 Stamina</span>
+                                <span id="p2StaminaText">100 / 100</span>
+                            </div>
+                            <div class="bar">
+                                <div id="p2StaminaBar" class="fill"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Messages</h2>
+                    <div id="messageBox" class="message-box">
+                        Welcome to Duck Tennis.
+                    </div>
+                    <button id="restartBtn">Back to Lobby</button>
+                </div>
+
+                <div class="card">
+                    <h2>Controls</h2>
+                    <p>A / Left Arrow = move left</p>
+                    <p>D / Right Arrow = move right</p>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div id="gameContainer"></div>
+            </div>
+        </div>
+
+        <script src="/socket.io/socket.io.js"></script>
+
+        <script type="importmap">
+            {
+                "imports": {
+                    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                }
+            }
+        </script>
+
+        <script type="module" src="/js/lobby.js"></script>
+    </body>
+</html>
