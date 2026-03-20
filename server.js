@@ -128,21 +128,23 @@ function getOpponent(room, player) {
 }
 
 function buildDuckStats(duck) {
-    const attrs = duck?.attributes ?? {};
+    const attrs = duck?.stats ?? {};
 
     const focus = Number(attrs.focus ?? 5);
     const strength = Number(attrs.strength ?? 5);
     const health = Number(attrs.health ?? 5);
     const kindness = Number(attrs.kindness ?? 5);
+    const intelligence = Number(attrs.intelligence ?? 5);
 
     return {
-        speed: 4 + focus * 0.45,
+        speed: 4 + kindness * 0.45,
         hitSpeed: 7 + strength * 0.7,
-        staminaMax: 100,
-        stamina: 100,
+        staminaMax: intelligence * 20,
+        stamina: intelligence * 20,
         tireRate: Math.max(3.5, 13 - health),
         recoverRate: 5 + health * 0.6,
         kindness,
+        shieldRadius: 0.6 + focus * 0.15,
     };
 }
 
@@ -196,25 +198,49 @@ function startMatch(room) {
 }
 
 function ballHitsPlayer(ball, player) {
-    const halfW = 2.1;
-    const halfH = 1.55;
-    const halfD = 0.9;
-    const playerY = 1.5;
+    const shieldRadius = player.stats.shieldRadius;
+    const shieldOffsetZ = player.side === "p1" ? 1.2 : -1.2;
+    const shieldCenterY = 1.8;
 
-    return (
-        Math.abs(ball.x - player.x) <= halfW + ball.radius &&
-        Math.abs(ball.y - playerY) <= halfH + ball.radius &&
-        Math.abs(ball.z - player.z) <= halfD + ball.radius
-    );
+    const shieldX = player.x;
+    const shieldY = shieldCenterY;
+    const shieldZ = player.z + shieldOffsetZ;
+
+    const dx = ball.x - shieldX;
+    const dy = ball.y - shieldY;
+    const dz = ball.z - shieldZ;
+
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    return distance <= shieldRadius + ball.radius;
 }
 
 function reflectBall(ball, player) {
-    const offsetX = (ball.x - player.x) / 2.1;
-    const speed = player.stats.hitSpeed;
+    const shieldOffsetZ = player.side === "p1" ? 1.2 : -1.2;
+    const shieldCenterY = 1.8;
 
-    ball.vz = player.side === "p1" ? Math.abs(speed) : -Math.abs(speed);
-    ball.vx += offsetX * 2.5;
-    ball.vx = clamp(ball.vx, -12, 12);
+    const shieldX = player.x;
+    const shieldY = shieldCenterY;
+    const shieldZ = player.z + shieldOffsetZ;
+
+    const dx = ball.x - shieldX;
+    const dy = ball.y - shieldY;
+    const dz = ball.z - shieldZ;
+
+    const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+
+    const nx = dx / len;
+    const nz = dz / len;
+
+    const speed = player.stats.hitSpeed;
+    const forwardZ = player.side === "p1" ? 1 : -1;
+
+    ball.vx = clamp(nx * speed * 0.9, -12, 12);
+    ball.vz = Math.abs(speed * Math.max(0.65, Math.abs(nz))) * forwardZ;
+
+    // Keep the ball parallel to the field
+    ball.y = 2;
+    ball.vy = 0;
 
     ball.lastHitBy = player.side;
 }
@@ -349,13 +375,13 @@ function updateBall(room, dt) {
     // }
 
     if (ball.vz < 0 && ballHitsPlayer(ball, room.players.p1)) {
-        ball.z = room.players.p1.z + 1.2;
         reflectBall(ball, room.players.p1);
+        ball.z = room.players.p1.z + 2.2;
     }
 
     if (ball.vz > 0 && ballHitsPlayer(ball, room.players.p2)) {
-        ball.z = room.players.p2.z - 1.2;
         reflectBall(ball, room.players.p2);
+        ball.z = room.players.p2.z - 2.2;
     }
 
     if (ball.z < -COURT.depth / 2) {
@@ -398,6 +424,7 @@ function publicRoomState(room) {
                 stamina: room.players.p1.stats.stamina,
                 staminaMax: room.players.p1.stats.staminaMax,
                 chaseTimer: room.players.p1.chaseTimer,
+                shieldRadius: room.players.p1.stats.shieldRadius,
             },
             p2: {
                 id: room.players.p2.id,
@@ -411,6 +438,7 @@ function publicRoomState(room) {
                 stamina: room.players.p2.stats.stamina,
                 staminaMax: room.players.p2.stats.staminaMax,
                 chaseTimer: room.players.p2.chaseTimer,
+                shieldRadius: room.players.p2.stats.shieldRadius,
             },
         },
         ball: {

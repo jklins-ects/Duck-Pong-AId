@@ -116,7 +116,15 @@ async function loadDucks() {
     for (const duck of ducks) {
         const option = document.createElement("option");
         option.value = duck._id;
-        option.textContent = `${duck.name} (#${duck._id})`;
+        const stats = duck.stats || {};
+
+        const strength = stats.strength ?? 0;
+        const health = stats.health ?? 0;
+        const focus = stats.focus ?? 0;
+        const kindness = stats.kindness ?? 0;
+        const intelligence = stats.intelligence ?? 0;
+
+        option.textContent = `${duck.name} (S:${strength}, H:${health}, F:${focus}, K:${kindness}, I:${intelligence})`;
         duckSelect.appendChild(option);
     }
 }

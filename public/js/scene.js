@@ -58,8 +58,8 @@ export class GameScene {
         // this.controls.maxPolarAngle = Math.PI / 2.05;
 
         this.players = {
-            p1: { group: new THREE.Group(), duck: null },
-            p2: { group: new THREE.Group(), duck: null },
+            p1: { group: new THREE.Group(), duck: null, shield: null },
+            p2: { group: new THREE.Group(), duck: null, shield: null },
         };
 
         this.baseDuckObject = null;
@@ -78,6 +78,11 @@ export class GameScene {
 
         this.players.p1.group.rotation.y = 0;
         this.players.p2.group.rotation.y = Math.PI;
+        this.players.p1.shield = this.createShield(1.5);
+        this.players.p2.shield = this.createShield(1.5);
+
+        this.players.p1.group.add(this.players.p1.shield);
+        this.players.p2.group.add(this.players.p2.shield);
 
         this.players.p1.group.visible = false;
         this.players.p2.group.visible = false;
@@ -85,7 +90,25 @@ export class GameScene {
         this.listenResize();
         this.startLoop();
     }
+    createShield(radius = 1.5) {
+        const shield = new THREE.Mesh(
+            new THREE.CylinderGeometry(radius, radius, 0.15, 40),
+            new THREE.MeshStandardMaterial({
+                color: 0x7fd6ff,
+                transparent: true,
+                opacity: 0.45,
+                emissive: 0x1a3a4a,
+                metalness: 0.15,
+                roughness: 0.35,
+            }),
+        );
 
+        // Make the cylinder face forward like a round paddle
+        shield.rotation.x = Math.PI / 2;
+        shield.position.set(0, 1.8, 1.2);
+
+        return shield;
+    }
     createLights() {
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
@@ -340,15 +363,31 @@ export class GameScene {
         this.applyDuckColors(clone, duck);
 
         const slot = this.players[side];
+        const shield = slot.shield;
+
         slot.group.clear();
         slot.group.add(clone);
+
+        if (shield) {
+            slot.group.add(shield);
+        }
+
         slot.duck = duck;
         slot.group.visible = true;
     }
+    setShieldRadius(side, radius) {
+        const shield = this.players[side]?.shield;
+        if (!shield) return;
 
+        const currentBaseRadius = 1.5;
+        const scale = radius / currentBaseRadius;
+
+        shield.scale.set(scale, 1, scale);
+    }
     updateState(state) {
         if (!state) return;
-
+        this.setShieldRadius("p1", state.players.p1.shieldRadius ?? 1.5);
+        this.setShieldRadius("p2", state.players.p2.shieldRadius ?? 1.5);
         this.players.p1.group.position.x = state.players.p1.x;
         this.players.p2.group.position.x = state.players.p2.x;
 
