@@ -239,7 +239,7 @@ export class GameScene {
         mtlLoader.setPath(this.modelBaseUrl);
 
         const materials = await new Promise((resolve, reject) => {
-            mtlLoader.load("duck.mtl", resolve, undefined, reject);
+            mtlLoader.load("duck.05.mtl", resolve, undefined, reject);
         });
 
         materials.preload();
@@ -249,7 +249,7 @@ export class GameScene {
         objLoader.setMaterials(materials);
 
         const obj = await new Promise((resolve, reject) => {
-            objLoader.load("duck.obj", resolve, undefined, reject);
+            objLoader.load("duck.05.obj", resolve, undefined, reject);
         });
 
         const box1 = new THREE.Box3().setFromObject(obj);
