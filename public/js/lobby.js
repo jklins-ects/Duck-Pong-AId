@@ -34,6 +34,11 @@ let currentMoveDir = 0;
 
 let gameClientSide = null;
 
+const keyState = {
+    left: false,
+    right: false,
+};
+
 function ensureGameClient() {
     if (!mySide) return;
 
@@ -47,6 +52,7 @@ function ensureGameClient() {
         gameClient.syncRoomState(currentState);
     }
 }
+
 function setMessage(text) {
     messageBox.textContent = text;
 }
@@ -101,6 +107,7 @@ function updateUI(state) {
     } else if (state.lastEventMessage) {
         setMessage(state.lastEventMessage);
     }
+
     if (gameClient) {
         gameClient.syncRoomState(state);
     }
@@ -139,6 +146,16 @@ function requireRoom() {
         return false;
     }
     return true;
+}
+
+function getDesiredMoveDir() {
+    if (keyState.left && !keyState.right) return -1;
+    if (keyState.right && !keyState.left) return 1;
+    return 0;
+}
+
+function syncMoveFromKeys() {
+    sendMove(getDesiredMoveDir());
 }
 
 createRoomBtn.addEventListener("click", () => {
@@ -238,7 +255,10 @@ socket.on("message", (payload) => {
 });
 
 function sendMove(dir) {
-    if (!currentRoomId || !currentState || currentState.phase !== "playing") {
+    if (
+        !currentRoomId ||
+        !currentState /*|| currentState.phase !== "playing"*/
+    ) {
         return;
     }
 
@@ -259,6 +279,7 @@ function sendMove(dir) {
         moveDir: adjustedDir,
     });
 }
+
 window.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
 
@@ -280,26 +301,37 @@ window.addEventListener("keydown", (e) => {
         return;
     }
 
+    if (e.repeat) return;
+
     if (key === "a" || e.key === "ArrowLeft") {
-        sendMove(-1);
+        keyState.left = true;
+        syncMoveFromKeys();
     }
 
     if (key === "d" || e.key === "ArrowRight") {
-        sendMove(1);
+        keyState.right = true;
+        syncMoveFromKeys();
     }
 });
 
 window.addEventListener("keyup", (e) => {
     const key = e.key.toLowerCase();
 
-    if (
-        key === "a" ||
-        key === "d" ||
-        e.key === "ArrowLeft" ||
-        e.key === "ArrowRight"
-    ) {
-        sendMove(0);
+    if (key === "a" || e.key === "ArrowLeft") {
+        keyState.left = false;
+        syncMoveFromKeys();
     }
+
+    if (key === "d" || e.key === "ArrowRight") {
+        keyState.right = false;
+        syncMoveFromKeys();
+    }
+});
+
+window.addEventListener("blur", () => {
+    keyState.left = false;
+    keyState.right = false;
+    syncMoveFromKeys();
 });
 
 await loadDucks();

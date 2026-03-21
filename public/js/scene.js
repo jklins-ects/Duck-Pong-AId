@@ -1,7 +1,6 @@
 import * as THREE from "three";
 //import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
-import { MTLLoader } from "three/addons/loaders/MTLLoader.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const COURT = {
     width: 20,
@@ -34,28 +33,20 @@ export class GameScene {
         this.containerEl = containerEl;
         this.modelBaseUrl = modelBaseUrl;
         this.localSide = localSide;
+
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x101418);
+
         const w = this.containerEl.clientWidth;
         const h = this.containerEl.clientHeight;
 
         this.camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 1000);
         this.camera.position.set(0, 14, 30);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ antialias: false });
         this.renderer.setSize(w, h);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setPixelRatio(1);
         this.containerEl.appendChild(this.renderer.domElement);
-
-        // this.controls = new OrbitControls(
-        //     this.camera,
-        //     this.renderer.domElement,
-        // );
-        // this.controls.target.set(0, 2, 0);
-        // this.controls.enableDamping = true;
-        // this.controls.minDistance = 15;
-        // this.controls.maxDistance = 60;
-        // this.controls.maxPolarAngle = Math.PI / 2.05;
 
         this.players = {
             p1: { group: new THREE.Group(), duck: null, shield: null },
@@ -63,6 +54,17 @@ export class GameScene {
         };
 
         this.baseDuckObject = null;
+
+        this.targets = {
+            p1x: 0,
+            p2x: 0,
+            p1z: COURT.p1z,
+            p2z: COURT.p2z,
+            ball: new THREE.Vector3(0, 2, 0),
+        };
+
+        this._cameraTarget = new THREE.Vector3();
+        this._cameraLookAt = new THREE.Vector3();
 
         this.ball = this.createBall();
         this.scene.add(this.ball);
@@ -78,6 +80,7 @@ export class GameScene {
 
         this.players.p1.group.rotation.y = 0;
         this.players.p2.group.rotation.y = Math.PI;
+
         this.players.p1.shield = this.createShield(1.5);
         this.players.p2.shield = this.createShield(1.5);
 
@@ -90,9 +93,10 @@ export class GameScene {
         this.listenResize();
         this.startLoop();
     }
+
     createShield(radius = 1.5) {
         const shield = new THREE.Mesh(
-            new THREE.CylinderGeometry(radius, radius, 0.15, 40),
+            new THREE.CylinderGeometry(radius, radius, 0.15, 10),
             new THREE.MeshStandardMaterial({
                 color: 0x7fd6ff,
                 transparent: true,
@@ -103,12 +107,12 @@ export class GameScene {
             }),
         );
 
-        // Make the cylinder face forward like a round paddle
         shield.rotation.x = Math.PI / 2;
         shield.position.set(0, 1.8, 1.2);
 
         return shield;
     }
+
     createLights() {
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
@@ -170,7 +174,7 @@ export class GameScene {
 
     createBall() {
         const mesh = new THREE.Mesh(
-            new THREE.SphereGeometry(0.45, 24, 24),
+            new THREE.SphereGeometry(0.45, 12, 12),
             new THREE.MeshStandardMaterial({ color: 0xfff067 }),
         );
         mesh.position.set(0, 2, 0);
@@ -184,6 +188,7 @@ export class GameScene {
             this.camera.aspect = w / h;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(w, h);
+            this.renderer.setPixelRatio(1);
         };
 
         window.addEventListener("resize", onResize);
@@ -193,6 +198,30 @@ export class GameScene {
 
     startLoop() {
         const tick = () => {
+            this.players.p1.group.position.x = THREE.MathUtils.lerp(
+                this.players.p1.group.position.x,
+                this.targets.p1x,
+                0.4,
+            );
+            this.players.p2.group.position.x = THREE.MathUtils.lerp(
+                this.players.p2.group.position.x,
+                this.targets.p2x,
+                0.4,
+            );
+
+            this.players.p1.group.position.z = THREE.MathUtils.lerp(
+                this.players.p1.group.position.z,
+                this.targets.p1z,
+                0.08,
+            );
+            this.players.p2.group.position.z = THREE.MathUtils.lerp(
+                this.players.p2.group.position.z,
+                this.targets.p2z,
+                0.08,
+            );
+
+            this.ball.position.lerp(this.targets.ball, 0.25);
+
             if (this.ball) {
                 this.ball.rotation.x += 0.15;
                 this.ball.rotation.z += 0.1;
@@ -204,6 +233,7 @@ export class GameScene {
 
         tick();
     }
+
     updateCameraFromState(state) {
         if (!state) return;
 
@@ -220,37 +250,34 @@ export class GameScene {
         const cameraY = 8.5;
         const cameraZ = isP1 ? -34 : 34;
 
-        const targetPos = new THREE.Vector3(cameraX, cameraY, cameraZ);
+        this._cameraTarget.set(cameraX, cameraY, cameraZ);
+        this._cameraLookAt.set(targetX, targetY, targetZ);
 
-        // snap immediately on first state so the joining player sees the correct side right away
         if (!this._cameraInitialized) {
-            this.camera.position.copy(targetPos);
+            this.camera.position.copy(this._cameraTarget);
             this._cameraInitialized = true;
         } else {
-            this.camera.position.lerp(targetPos, 0.04);
+            this.camera.position.lerp(this._cameraTarget, 0.18);
         }
 
-        this.camera.lookAt(targetX, targetY, targetZ);
+        this.camera.lookAt(this._cameraLookAt);
     }
+
     async loadBaseDuckModel() {
         if (this.baseDuckObject) return this.baseDuckObject;
 
-        const mtlLoader = new MTLLoader();
-        mtlLoader.setPath(this.modelBaseUrl);
+        const loader = new GLTFLoader();
 
-        const materials = await new Promise((resolve, reject) => {
-            mtlLoader.load("duck.05.mtl", resolve, undefined, reject);
+        const gltf = await new Promise((resolve, reject) => {
+            loader.load(
+                `${this.modelBaseUrl}duck.1.glb`,
+                resolve,
+                undefined,
+                reject,
+            );
         });
 
-        materials.preload();
-
-        const objLoader = new OBJLoader();
-        objLoader.setPath(this.modelBaseUrl);
-        objLoader.setMaterials(materials);
-
-        const obj = await new Promise((resolve, reject) => {
-            objLoader.load("duck.05.obj", resolve, undefined, reject);
-        });
+        const obj = gltf.scene;
 
         const box1 = new THREE.Box3().setFromObject(obj);
         const size = new THREE.Vector3();
@@ -269,14 +296,8 @@ export class GameScene {
         obj.traverse((child) => {
             if (!child.isMesh) return;
 
-            if (Array.isArray(child.material)) {
-                child.material = child.material.map((m) => m.clone());
-            } else if (child.material) {
-                child.material = child.material.clone();
-            }
-
-            child.castShadow = true;
-            child.receiveShadow = true;
+            child.castShadow = false;
+            child.receiveShadow = false;
         });
 
         this.baseDuckObject = obj;
@@ -284,64 +305,58 @@ export class GameScene {
     }
 
     resolveColorKey(child, material) {
-        const name = String(material?.name || child?.name || "").toLowerCase();
+        const materialName = String(material?.name || "").toLowerCase();
+        const childName = String(child?.name || "").toLowerCase();
+        const name = `${childName} ${materialName}`;
 
         if (name.includes("head")) return "head";
         if (name.includes("front_left")) return "front_left";
         if (name.includes("frontleft")) return "front_left";
+        if (name.includes("front right")) return "front_right";
         if (name.includes("front_right")) return "front_right";
         if (name.includes("frontright")) return "front_right";
         if (name.includes("rear_left")) return "rear_left";
         if (name.includes("rearleft")) return "rear_left";
+        if (name.includes("rear right")) return "rear_right";
         if (name.includes("rear_right")) return "rear_right";
         if (name.includes("rearright")) return "rear_right";
-        if (name.includes("beak")) return "beak";
-        if (name.includes("eye")) return "eyes";
+        if (name.includes("beak") || name.includes("bill")) return "beak";
+        if (name.includes("eye") || name.includes("pupil")) return "eyes";
 
-        return material?.name || child?.name || "head";
+        return "head";
     }
 
     applyDuckColors(obj, duck) {
         const isDerpy = !!duck.derpy;
 
-        const duck_colors = {
+        const duckColors = {
             head: duck.body?.head ?? "yellow",
             front_left: duck.body?.frontLeft ?? duck.body?.front1 ?? "yellow",
             front_right: duck.body?.frontRight ?? duck.body?.front2 ?? "yellow",
             rear_left: duck.body?.rearLeft ?? duck.body?.back1 ?? "yellow",
             rear_right: duck.body?.rearRight ?? duck.body?.back2 ?? "yellow",
-
             eyes: isDerpy ? "white" : "black",
-            normal_pupil: "white",
-            derpy_eyes: "black",
-
             beak: "orange",
         };
 
         obj.traverse((child) => {
             if (!child.isMesh) return;
 
-            const mat = child.material;
-            const meshKey = child.name;
+            const setColor = (mat) => {
+                if (!mat?.color) return;
 
-            const setColor = (m, key) => {
-                if (!m || !m.color) return;
+                const key = this.resolveColorKey(child, mat);
+                const chosen = duckColors[key] ?? "yellow";
+                mat.color.set(normalizeColor(chosen));
 
-                const chosen =
-                    duck_colors[key] ??
-                    duck_colors[String(m.name || "").toLowerCase()] ??
-                    "yellow";
-
-                m.color.set(normalizeColor(chosen));
+                if ("metalness" in mat) mat.metalness = 0;
+                if ("roughness" in mat) mat.roughness = 1;
             };
 
-            if (Array.isArray(mat)) {
-                for (const m of mat) {
-                    const key = m.name;
-                    setColor(m, key);
-                }
+            if (Array.isArray(child.material)) {
+                child.material.forEach(setColor);
             } else {
-                setColor(mat, meshKey);
+                setColor(child.material);
             }
         });
     }
@@ -358,6 +373,9 @@ export class GameScene {
             } else if (child.material) {
                 child.material = child.material.clone();
             }
+
+            child.castShadow = false;
+            child.receiveShadow = false;
         });
 
         this.applyDuckColors(clone, duck);
@@ -375,6 +393,7 @@ export class GameScene {
         slot.duck = duck;
         slot.group.visible = true;
     }
+
     setShieldRadius(side, radius) {
         const shield = this.players[side]?.shield;
         if (!shield) return;
@@ -384,48 +403,29 @@ export class GameScene {
 
         shield.scale.set(scale, 1, scale);
     }
+
     updateState(state) {
         if (!state) return;
+
         this.setShieldRadius("p1", state.players.p1.shieldRadius ?? 1.5);
         this.setShieldRadius("p2", state.players.p2.shieldRadius ?? 1.5);
-        this.players.p1.group.position.x = state.players.p1.x;
-        this.players.p2.group.position.x = state.players.p2.x;
 
-        this.ball.position.set(state.ball.x, state.ball.y, state.ball.z);
+        this.targets.p1x = state.players.p1.x;
+        this.targets.p2x = state.players.p2.x;
 
-        if (state.players.p1.chaseTimer > 0) {
-            this.players.p1.group.position.z = THREE.MathUtils.lerp(
-                this.players.p1.group.position.z,
-                -8,
-                0.08,
-            );
-        } else {
-            this.players.p1.group.position.z = THREE.MathUtils.lerp(
-                this.players.p1.group.position.z,
-                COURT.p1z,
-                0.08,
-            );
-        }
+        this.targets.ball.set(state.ball.x, state.ball.y, state.ball.z);
 
-        if (state.players.p2.chaseTimer > 0) {
-            this.players.p2.group.position.z = THREE.MathUtils.lerp(
-                this.players.p2.group.position.z,
-                8,
-                0.08,
-            );
-        } else {
-            this.players.p2.group.position.z = THREE.MathUtils.lerp(
-                this.players.p2.group.position.z,
-                COURT.p2z,
-                0.08,
-            );
-        }
+        this.targets.p1z = state.players.p1.chaseTimer > 0 ? -8 : COURT.p1z;
+        this.targets.p2z = state.players.p2.chaseTimer > 0 ? 8 : COURT.p2z;
+
         this.updateCameraFromState(state);
     }
+
     setPlayerVisible(side, visible) {
         if (!this.players[side]) return;
         this.players[side].group.visible = visible;
     }
+
     destroy() {
         if (this._animHandle) cancelAnimationFrame(this._animHandle);
         if (this._cleanupResize) this._cleanupResize();

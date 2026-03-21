@@ -44,7 +44,7 @@ const COURT = {
 
 const BALL_RADIUS = 0.45;
 const WIN_SCORE = 5;
-const TICK_RATE = 1000 / 30;
+const TICK_RATE = 1000 / 60; //1000 / 30;
 
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -394,10 +394,10 @@ function updateBall(room, dt) {
 }
 
 function updateRoom(room, dt) {
-    if (room.phase !== "playing") return [];
-
     updatePlayer(room.players.p1, dt);
     updatePlayer(room.players.p2, dt);
+
+    if (room.phase !== "playing") return [];
 
     return updateBall(room, dt);
 }
@@ -641,7 +641,7 @@ io.on("connection", (socket) => {
                 .trim()
                 .toUpperCase(),
         );
-        if (!room || room.phase !== "playing") return;
+        if (!room /*|| room.phase !== "playing"*/) return;
 
         const player = getPlayerBySocket(room, socket.id);
         if (!player) return;
@@ -740,7 +740,7 @@ io.on("connection", (socket) => {
 
 setInterval(() => {
     for (const room of rooms.values()) {
-        if (room.phase !== "playing") continue;
+        //if (room.phase !== "playing") continue;
 
         const now = Date.now();
         const dt = Math.min((now - room.lastTick) / 1000, 0.05);
